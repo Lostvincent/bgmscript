@@ -51,6 +51,22 @@ var DB = {
             }
         });
     },
+    init: function () {
+        this.action(function(objectStore) {
+            var list = objectStore.get(topic_id);
+            list.onsuccess = function(event) {
+                if (list.result != undefined && list.result.length) {
+                    nsfw_items = list.result;
+                    item = $('#post_' + nsfw_items.join(', #post_'));
+                    addNSFW(item);
+
+                    item.children('div.re_info').append('<small class="btn-nsfw-cancel">NSFW</small>');
+                };
+
+                addNSFWBtn();
+            }
+        });
+    },
     action: function(callback) {
         var connect = indexedDB.open(DB_NAME, 1);
         connect.onerror = function(event) {
@@ -71,27 +87,7 @@ var DB = {
 
 (function() {
     topic_id = window.location.pathname.split('/')[3];
-
-    // del from indexedDB
-    var connect = indexedDB.open(DB_NAME, 1);
-
-    connect.onsuccess = function(event) {
-        var transaction = event.target.result.transaction([DB_TOPIC_TABLE], "readwrite");
-        var objectStore = transaction.objectStore(DB_TOPIC_TABLE);
-
-        var list = objectStore.get(topic_id);
-        list.onsuccess = function(event) {
-            if (list.result.length) {
-                nsfw_items = list.result;
-                item = $('#post_' + nsfw_items.join(', #post_'));
-                addNSFW(item);
-
-                item.children('div.re_info').append('<small class="btn-nsfw-cancel">NSFW</small>');
-            }
-
-            addNSFWBtn();
-        }
-    };
+    DB.init();
 })();
 
 function addNSFWBtn() {
