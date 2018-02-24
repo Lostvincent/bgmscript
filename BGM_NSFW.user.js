@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BGM NSFW
 // @namespace    https://greasyfork.org/zh-CN/scripts/38829-bgm-nsfw
-// @version      0.3
+// @version      0.4
 // @description  NSFW for bangumi
 // @author       Vincent
 // @include      /^https?:\/\/((bangumi|bgm)\.tv|chii.in)\/group\/topic\/\d+$/
