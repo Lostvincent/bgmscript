@@ -33,19 +33,65 @@ GM_addStyle(`
 var nsfw_items = undefined;
 var topic_id = null;
 
+const DB_NAME = 'nsfw';
+const DB_TOPIC_TABLE = 'topic';
+
+var DB = {
+    update: function() {
+        this.action(function(objectStore) {
+            objectStore.put(nsfw_items, topic_id);
+        });
+    },
+    delete: function() {
+        this.action(function(objectStore) {
+            if (nsfw_items.length) {
+                objectStore.put(nsfw_items, topic_id);
+            } else {
+                objectStore.delete(topic_id);
+            }
+        });
+    },
+    action: function(callback) {
+        var connect = indexedDB.open(DB_NAME, 1);
+        connect.onerror = function(event) {
+            // 错误处理程序在这里。
+        };
+
+        connect.onupgradeneeded = function(event) {
+            var objectStore = event.target.result.createObjectStore(DB_TOPIC_TABLE);
+        };
+
+        connect.onsuccess = function(event) {
+            var transaction = event.target.result.transaction([DB_TOPIC_TABLE], "readwrite");
+            var objectStore = transaction.objectStore(DB_TOPIC_TABLE);
+            callback(objectStore);
+        };
+    }
+};
+
 (function() {
     topic_id = window.location.pathname.split('/')[3];
 
-    nsfw_items = window.localStorage['nsfw_topic_' + topic_id];
-    if (nsfw_items) {
-        nsfw_items = nsfw_items.split(',');
-        item = $('#post_' + nsfw_items.join(', #post_'));
-        addNSFW(item);
+    // del from indexedDB
+    var connect = indexedDB.open(DB_NAME, 1);
 
-        item.children('div.re_info').append('<small class="btn-nsfw-cancel">NSFW</small>');
-    }
+    connect.onsuccess = function(event) {
+        var transaction = event.target.result.transaction([DB_TOPIC_TABLE], "readwrite");
+        var objectStore = transaction.objectStore(DB_TOPIC_TABLE);
 
-    addNSFWBtn();
+        var list = objectStore.get(topic_id);
+        list.onsuccess = function(event) {
+            if (list.result.length) {
+                nsfw_items = list.result;
+                item = $('#post_' + nsfw_items.join(', #post_'));
+                addNSFW(item);
+
+                item.children('div.re_info').append('<small class="btn-nsfw-cancel">NSFW</small>');
+            }
+
+            addNSFWBtn();
+        }
+    };
 })();
 
 function addNSFWBtn() {
@@ -63,7 +109,7 @@ function addNSFWBtn() {
         var item = $(this).parent().parent();
 
         addNSFW(item);
-        storeNSFWLocal(item.prop('id').split('_')[1]);
+        storeNSFWLocalDB(item.prop('id').split('_')[1]);
 
         $(this).addClass('btn-nsfw-cancel');
         $(this).removeClass('btn-nsfw');
@@ -72,7 +118,7 @@ function addNSFWBtn() {
         var item = $(this).parent().parent();
 
         removeNSFW(item);
-        cancelNSFWLocal(item.prop('id').split('_')[1]);
+        cancelNSFWLocalDB(item.prop('id').split('_')[1]);
 
         $(this).addClass('btn-nsfw');
         $(this).removeClass('btn-nsfw-cancel');
@@ -91,26 +137,28 @@ function removeNSFW(item) {
     item.children('div.inner').children('div.reply_content').children('div.message').removeClass('post-nsfw');
 }
 
-function storeNSFWLocal(post_id) {
+function storeNSFWLocalDB(post_id) {
     if (nsfw_items == undefined || nsfw_items == '') {
         nsfw_items = [];
     }
     if (nsfw_items.indexOf(post_id) == - 1) {
+        // add to array
         nsfw_items.push(post_id);
-        window.localStorage['nsfw_topic_' + topic_id] = nsfw_items.join(',');
+        DB.update();
     }
 }
 
-function cancelNSFWLocal(post_id) {
+function cancelNSFWLocalDB(post_id) {
     if (nsfw_items == undefined || nsfw_items == '') {
         nsfw_items = [];
     }
     if (nsfw_items.indexOf(post_id) != - 1) {
+        // remove from array
         nsfw_items.splice(nsfw_items.indexOf(post_id), 1);
         if (nsfw_items.length) {
-            window.localStorage['nsfw_topic_' + topic_id] = nsfw_items.join(',');
+            DB.update();
         } else {
-            window.localStorage.removeItem('nsfw_topic_' + topic_id);
+            DB.delete();
         }
     }
 }
